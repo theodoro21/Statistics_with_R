@@ -1,0 +1,126 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(statsr)
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+```{r load-data}
+load("brfss2013.RData")
+```
+* * *
+
+## Part 1: Data
+The Behavioral Risk Factor Surveillance System (BRFSS) is an annual survey conducted by the Centers for Disease Control and Prevention (CDC) to collect data on preventive health practices, risk behaviors, and chronic health conditions that affect the adult population in the U.S. Data is collected from all 50 states the District of Columbia, Puerto Rico, Guam, American Samoa, Federated States of Micronesia, and Palau.  The BRFSS is the largest continuously conducted health survey system in the world and many countries have developed similar surveillance systems. 
+
+The BRFSS uses two samples: one for landline telephone respondents and one for cellular telephone respondents. Since landline telephones are often shared among persons living within a residence, household sampling is used in the landline sample. Household sampling requires interviewers to collect information on the number of adults living within a residence and then select randomly from all eligible adults. Cellular telephone respondents are weighted as single adult households.  Information on survey methods used to conduct the BRFSS survery can be found in the BRFSS Data User Guide (https://www.cdc.gov/brfss/data_documentation/pdf/UserguideJune2013.pdf).  
+
+Disproportionate stratified sampling (DSS) is used for the landline sampling because it is more efficient than simple random sampling.  The cellular telephone sample is randomly generated from a sampling frame of confirmed cellular area code and prefix combinations. Cellular telephone respondents are randomly selected with each having equal probability of selection. 
+
+Non response bias may affect the data because only some of the population may have answered the call or responded to the survey.  The BRFSS questionarre is only available in English and Spanish excluding residents from the survey who only speak another language (www.cdc.gov/brfss/about/brfss_faq.htm).  The methods used in BRFSS survey are also not able to include the subset of the population that does not have access to a landline or cellphone.  In an attempt to remove bias in the sample the data undergoes design weighting and iterative proportional fitting.  
+
+### Generalizability
+The BRFSS survey should be generalizable to all non-institutionalized adults (18 years of age and older) residing in the U.S.  Though many other countries employ similar surveillance studies the user should note that access to landlines and cell phones may be different in addition to many other confounding variables due to demographics and culture.
+
+### Causality
+The BRFSS is an observational study on the population.  The data in the survey is collected through random assignment of phone numbers not through random assignment of experiemntal study groups.  Thus it can shown that variables are associated but it cannot be shown that the variables are causal. 
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+Is there a correlation between month 'imonth' and self-reported mental health 'menthlth'?  Are there differences based on gender 'sex'?  I am interested if mental health correlates to the seasons.  
+
+**Research quesion 2:**
+Is there a correlation between amount of sleep 'sleptim1' and self-reported mental health 'menthlth'?  Are there differences based on gender 'sex'?  I am interested how the number of hours of sleep relates to mental health and if there is an optimal number of hours to sleep each day. 
+
+**Research quesion 3:**
+Is there a correlation between number of alcoholic drinks consumed 'avedrnk2' and self-reported mental health?  I am interested to see how the number of alcoholic beverages consumed correlates to mental health because alcohol is often used as a crutch for depression.  
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+**Research quesion 1:**
+Is there a correlation between month 'imonth' and self-reported mental health 'menthlth'?  Are there differences based on gender 'sex'?
+
+```{r}
+set1 <- select(brfss2013, menthlth, imonth, sex) %>%
+  filter(menthlth != "NA") %>%
+  filter(sex != "NA") %>%
+  group_by(imonth) 
+summary(set1)
+
+ggplot(set1, aes(x = imonth, y = menthlth, fill=imonth)) +
+  geom_bar(stat="identity") +
+  facet_grid(.~sex) +
+  ggtitle("Seasonal Mental Health") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("Month") +
+  ylab("Self-Reported Mental Health") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_fill_manual(values=c("#0000FF", "#0000FF", "#0000FF", "#32CD32", "#32CD32", "#32CD32", "#FFDF00", "#FFDF00", "#FFDF00", "#FFA500", "#FFA500", "#FFA500"))
+```
+
+There are slightly more days of poor mental health in the summer and fall months than the winter and spring months.  Interestingly, December has the least number of days of poor mental health (note that data refers to the previous 30 days from when sample was taken), possibly due to the holiday season.  Trends are consistent between males and females.  More females were sampled (285079) than males (198066) causing the increased number of days of reported poor mental health.  
+
+
+**Research quesion 2:**
+Is there a correlation between amount of sleep 'sleptim1' and self-reported mental health 'menthlth'?  Are there differences based on gender 'sex'?
+
+```{r}
+set3 <- select(brfss2013, menthlth, sleptim1, sex) %>%
+  filter(menthlth != "NA") %>%
+  filter(menthlth <= 30) %>%
+  filter(sleptim1 != "NA") %>%
+  filter(sleptim1 <= 24) %>% #Can't sleep more than 24 hrs a day
+  filter(sex != "NA")
+summary(set3)
+
+ggplot(set3, aes(x = sleptim1, y = menthlth)) + 
+  geom_point(alpha = 0.5, aes(colour = sex)) +
+  geom_smooth() +
+  facet_grid(.~sex) +
+  ggtitle("Rated Mental Health to Hours of Sleep") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  xlab("Hours of Sleep ('sleptim1')") + 
+  ylab("Self-Reported Mental Health ('menthlth')") 
+```
+
+There is a trend of more reported days of poor mental health as a person sleeps more or less than about 7 hours of sleep a day.  Interstingly, females getting more than 19 hours of sleep see a decrease in the number of poor mental health days.  
+
+**Research quesion 3:**
+Is there a correlation between number of alcoholic drinks consumed 'avedrnk2' and self-reported mental health?
+
+```{r}
+set4 <- select(brfss2013, menthlth, avedrnk2) %>%
+  filter(menthlth != "NA") %>%
+  filter(menthlth <= 30) %>%
+  filter(avedrnk2 != "NA") #remove those that didn't answer
+summary(set4)
+
+ggplot(set4, aes(x = avedrnk2, y = menthlth)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth() +
+  ggtitle("Alcoholic and Mental Health") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  xlab("Number of Alcoholic Drinks in the past 30 Days (avedrnk2)") + 
+  ylab ("Self-Reported Mental Health (menthlth)") 
+```
+
+There is a trend of more number of days with poor mental health the more alcoholic drinks consumed.  There is a noticeable increase in the reported number of days with poor mental health with 60 or more alcoholic drinks consumed in the past month, averaging to about 3 drinks a day.  
+
